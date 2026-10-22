@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../platform/app_platform.dart';
+import 'sound_player_stub.dart'
+    if (dart.library.io) 'sound_player_io.dart'
+    as sound;
 
 /// The menu bar / system tray icon as it should be.
 @immutable
@@ -130,8 +133,11 @@ class ChannelAttentionHost implements AttentionHost {
   }) => _invoke('notify', {'id': id, 'title': title, 'body': body});
 
   @override
-  Future<void> playSound({String? path, Uint8List? bytes}) =>
-      _invoke('playSound', {'path': ?path, 'bytes': ?bytes});
+  Future<void> playSound({String? path, Uint8List? bytes}) async {
+    // Linux has no native host of its own: the system's player does it.
+    if (AppPlatform.isLinux) return sound.play(path: path, bytes: bytes);
+    await _invoke('playSound', {'path': ?path, 'bytes': ?bytes});
+  }
 
   @override
   Future<void> requestAttention() => _invoke('requestAttention');
