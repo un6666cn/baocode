@@ -1382,8 +1382,8 @@ void main() {
           'updatedInput': protectedCommand,
         });
       }
-      // Manual-only safety checks, explicit ask rules and the plan remain
-      // the user's decisions, even when a protected-path check is approvable.
+      // Everything a command is runs without asking in full access, safety
+      // checks and explicit ask rules included.
       for (final (i, why) in const [
         {'decision_reason_type': 'safetyCheck'},
         {'decision_reason_type': 'safetyCheck', 'classifier_approvable': false},
@@ -1400,17 +1400,24 @@ void main() {
           'classifier_approvable': true,
           'matched_ask_rule': {'toolName': 'Bash'},
         },
-        {'requires_user_interaction': true},
         {'decision_reason_code': 'outside_reads_blocked'},
       ].indexed) {
         ask('r2-$i', 'Bash', command, why);
         await pumpEventQueue();
-        expect(transcript.pendingInteraction, isA<ApprovalRequest>());
-        kernel.answer(
-          'r2-$i',
-          const ApprovalAnswer(ApprovalDecision.allowOnce),
-        );
+        expect(transcript.pendingInteraction, isNull);
+        expect(cli.responses.last, {
+          'behavior': 'allow',
+          'updatedInput': command,
+        });
       }
+      // A tool that needs the user's own interaction is still asked.
+      ask('r2-user', 'Bash', command, {'requires_user_interaction': true});
+      await pumpEventQueue();
+      expect(transcript.pendingInteraction, isA<ApprovalRequest>());
+      kernel.answer(
+        'r2-user',
+        const ApprovalAnswer(ApprovalDecision.allowOnce),
+      );
       // The plan is put to the user, not asked about.
       ask('r3', 'ExitPlanMode', {'plan': '1. Do it'});
       await pumpEventQueue();
